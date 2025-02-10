@@ -25,6 +25,11 @@ ssd1306_t disp;
 bool led_green_state = false;
 bool led_blue_state = false;
 
+// Variáveis de debounce
+#define DEBOUNCE_DELAY_MS 50
+absolute_time_t last_button_a_time = 0;
+absolute_time_t last_button_b_time = 0;
+
 // Inicializa o I2C e o display OLED
 void init_display() {
     i2c_init(i2c1, 400000);
@@ -57,30 +62,57 @@ void init_rgb_led() {
 
 // Callback do BTN_A
 void button_a_callback(uint gpio, uint32_t events) {
-    led_green_state = !led_green_state;
-    gpio_put(LED_GREEN, led_green_state);
-    
-    // Atualiza display
-    ssd1306_fill(&disp, false);
-    ssd1306_draw_string(&disp, led_green_state ? "LED Verde: ON" : "LED Verde: OFF", 0, 0);
-    ssd1306_send_data(&disp);
-    
-    // Envia ao serial monitor
-    printf("Green LED toggled: %s\n", led_green_state ? "ON" : "OFF");
+    absolute_time_t now = get_absolute_time();
+    if (absolute_time_diff_us(last_button_a_time, now) >= DEBOUNCE_DELAY_MS * 1000) {
+        led_green_state = !led_green_state;
+        gpio_put(LED_GREEN, led_green_state);
+
+        // Atualiza display
+        ssd1306_fill(&disp, false);
+        ssd1306_draw_string(&disp, led_green_state ? "LED Verde: ON" : "LED Verde: OFF", 0, 0);
+        ssd1306_send_data(&disp);
+        
+        // Envia ao serial monitor
+        printf("Green LED toggled: %s\n", led_green_state ? "ON" : "OFF");
+
+        last_button_a_time = now;
+    }
 }
 
 // Callback do BTN_B
 void button_b_callback(uint gpio, uint32_t events) {
-    led_blue_state = !led_blue_state;
-    gpio_put(LED_BLUE, led_blue_state);
-    
-    // Atualiza display
-    ssd1306_fill(&disp, false);
-    ssd1306_draw_string(&disp, led_blue_state ? "LED Azul: ON" : "LED Azul: OFF", 0, 0);
-    ssd1306_send_data(&disp);
-    
-    // Envia ao serial monitor
-    printf("Blue LED toggled: %s\n", led_blue_state ? "ON" : "OFF");
+    absolute_time_t now = get_absolute_time();
+    if (absolute_time_diff_us(last_button_b_time, now) >= DEBOUNCE_DELAY_MS * 1000) {
+        led_blue_state = !led_blue_state;
+        gpio_put(LED_BLUE, led_blue_state);
+        
+        // Atualiza display
+        ssd1306_fill(&disp, false);
+        ssd1306_draw_string(&disp, led_blue_state ? "LED Azul: ON" : "LED Azul: OFF", 0, 0);
+        ssd1306_send_data(&disp);
+        
+        // Envia ao serial monitor
+        printf("Blue LED toggled: %s\n", led_blue_state ? "ON" : "OFF");
+        
+        last_button_b_time = now;
+    }
+}
+
+// Função para ler uma string do terminal serial
+void read_input(char *buffer, int buffer_size) {
+    int index = 0;
+    while (index < buffer_size - 1) {
+        int c = getchar_timeout_us(0);
+        if (c != PICO_ERROR_TIMEOUT) {
+            if (c == '\n' || c == '\r') { // Finaliza a leitura ao pressionar Enter
+                buffer[index] = '\0';
+                return;
+            }
+            buffer[index++] = c;
+        }
+        sleep_ms(10); // Pequeno delay para evitar uso excessivo da CPU
+    }
+    buffer[buffer_size - 1] = '\0'; // Garante que a string seja terminada corretamente
 }
 
 int main() {
@@ -107,26 +139,47 @@ int main() {
     
     // Inicializa os botões
     init_buttons(button_a_callback, button_b_callback);
+
+    // Buffer para entrada do usuário
+    char input_buffer[32];
     
     // Loop principal
     while(1) {
         if (stdio_usb_connected()) {
-            int c = getchar_timeout_us(0);
-            if (c != PICO_ERROR_TIMEOUT) {
-                // Mostra caractere no OLED
-                ssd1306_fill(&disp, false);
-                char str[2] = {c, '\0'};
-                ssd1306_draw_string(&disp, str, 0, 0);
-                ssd1306_send_data(&disp);
-                
-                // Se for um número, mostra na matriz de LEDs
-                if (c >= '0' && c <= '9') {
-                    int num = c - '0';
-                    ws2812b_draw(pio, sm, num);
-                }
+            printf("Digite um número: ");
+            read_input(input_buffer, sizeof(input_buffer));
+
+            if (strlen(input_buffer) == 1 && input_buffer[0] >= '0' && input_buffer[0] <= '9') {
+                int num = input_buffer[0] - '0';
+                ws2812b_draw(pio, sm, num);
+                printf("Numero %d exibido na matriz de LEDs.\n", num);
+            } else {
+                printf("Entrada inválida!\n");
             }
+
+            sleep_ms(100);
         }
-        
-        sleep_ms(10); // Delay
     }
+
+
+    // while(1) {
+    //     if (stdio_usb_connected()) {
+    //         int c = getchar_timeout_us(0);
+    //         if (c != PICO_ERROR_TIMEOUT) {
+    //             // Mostra caractere no OLED
+    //             ssd1306_fill(&disp, false);
+    //             char str[2] = {c, '\0'};
+    //             ssd1306_draw_string(&disp, str, 0, 0);
+    //             ssd1306_send_data(&disp);
+                
+    //             // Se for um número, mostra na matriz de LEDs
+    //             if (c >= '0' && c <= '9') {
+    //                 int num = c - '0';
+    //                 ws2812b_draw(pio, sm, num);
+    //             }
+    //         }
+    //     }
+        
+    //     sleep_ms(10); // Delay
+    // }
 }
