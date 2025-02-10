@@ -1,0 +1,47 @@
+.program ws2812
+
+.wrap_target
+    out x, 1        ; Carrega o próximo bit no registrador X
+    jmp !x do_zero  ; Se o bit for 0, pula para do_zero
+do_one:
+    set pins, 1 [2] ; Bit 1: Alto por 3 ciclos (0.8 µs a 8 MHz)
+    set pins, 0 [1] ; Bit 1: Baixo por 2 ciclos (0.45 µs a 8 MHz)
+    jmp cont        ; Pula para o final
+do_zero:
+    set pins, 1 [1] ; Bit 0: Alto por 2 ciclos (0.4 µs a 8 MHz)
+    set pins, 0 [2] ; Bit 0: Baixo por 3 ciclos (0.85 µs a 8 MHz)
+cont:
+    nop             ; Ciclo adicional para sincronização
+.wrap
+
+
+% c-sdk {
+static inline void ws2812_program_init(PIO pio, uint sm, uint offset, uint pin, float freq, bool rgbw)
+{
+    pio_sm_config c = ws2812_program_get_default_config(offset);
+
+    // Configura o pino de saída
+    sm_config_set_set_pins(&c, pin, 1);
+    pio_gpio_init(pio, pin);
+    pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, true);
+
+    // Configura o divisor de clock para gerar a frequência desejada
+    float div = clock_get_hz(clk_sys) / (freq * 3); // 3 ciclos por bit
+    sm_config_set_clkdiv(&c, div);
+
+    // Configura o FIFO para enviar dados
+    sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);
+
+    // Configura o deslocamento de saída
+    sm_config_set_out_shift(&c, false, true, 24);
+
+    // Configura o comportamento do pino de saída
+    sm_config_set_out_special(&c, true, false, false);
+
+    // Inicializa a state machine
+    pio_sm_init(pio, sm, offset, &c);
+
+    // Habilita a state machine
+    pio_sm_set_enabled(pio, sm, true);
+}
+%}
