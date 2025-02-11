@@ -146,40 +146,22 @@ int main() {
     // Loop principal
     while(1) {
         if (stdio_usb_connected()) {
-            printf("Digite um número: ");
-            read_input(input_buffer, sizeof(input_buffer));
-
-            if (strlen(input_buffer) == 1 && input_buffer[0] >= '0' && input_buffer[0] <= '9') {
-                int num = input_buffer[0] - '0';
-                ws2812b_draw(pio, sm, num);
-                printf("Numero %d exibido na matriz de LEDs.\n", num);
-            } else {
-                printf("Entrada inválida!\n");
-            }
-
-            sleep_ms(100);
-        }
-    }
-
-
-    // while(1) {
-    //     if (stdio_usb_connected()) {
-    //         int c = getchar_timeout_us(0);
-    //         if (c != PICO_ERROR_TIMEOUT) {
-    //             // Mostra caractere no OLED
-    //             ssd1306_fill(&disp, false);
-    //             char str[2] = {c, '\0'};
-    //             ssd1306_draw_string(&disp, str, 0, 0);
-    //             ssd1306_send_data(&disp);
+            int c = getchar_timeout_us(0);
+            if (c != PICO_ERROR_TIMEOUT) {
+                // Mostra caractere no OLED
+                ssd1306_fill(&disp, false);
+                char str[2] = {c, '\0'};
+                ssd1306_draw_string(&disp, str, 0, 0);
+                ssd1306_send_data(&disp);
                 
-    //             // Se for um número, mostra na matriz de LEDs
-    //             if (c >= '0' && c <= '9') {
-    //                 int num = c - '0';
-    //                 ws2812b_draw(pio, sm, num);
-    //             }
-    //         }
-    //     }
+                // Se for um número, mostra na matriz de LEDs
+                if (c >= '0' && c <= '9') {
+                    int num = c - '0';
+                    ws2812b_draw(pio, sm, num);
+                }
+            }
+        }
         
-    //     sleep_ms(10); // Delay
-    // }
+        sleep_ms(10); // Delay
+    }
 }
