@@ -117,7 +117,7 @@ void read_input(char *buffer, int buffer_size) {
 
 int main() {
     // Inidcializa o clock de sistema
-    set_sys_clock_khz(128000, true);
+    set_sys_clock_khz(128000, false);
     
     // Inicializa stdio
     stdio_init_all();
@@ -142,6 +142,8 @@ int main() {
 
     // Buffer para entrada do usuário
     char input_buffer[32];
+
+    int num = 0;
     
     // Loop principal
     while(1) {
@@ -156,12 +158,12 @@ int main() {
                 
                 // Se for um número, mostra na matriz de LEDs
                 if (c >= '0' && c <= '9') {
-                    int num = c - '0';
+                    num = c - '0'; 
                     ws2812b_draw(pio, sm, num);
                 }
             }
         }
         
-        sleep_ms(10); // Delay
+        sleep_ms(20); // Delay
     }
 }

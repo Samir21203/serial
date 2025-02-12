@@ -1,17 +1,16 @@
 .program ws2812
 
 .wrap_target
-    out x, 1        ; Carrega o próximo bit no registrador X
-    jmp !x do_zero  ; Se o bit for 0, pula para do_zero
+    out x, 1
+    jmp !x do_zero
 do_one:
-    set pins, 1 [2] ; Bit 1: Alto por 3 ciclos (0.8 µs a 8 MHz)
-    set pins, 0 [1] ; Bit 1: Baixo por 2 ciclos (0.45 µs a 8 MHz)
-    jmp cont        ; Pula para o final
+    set pins, 1 [4]
+    jmp cont
 do_zero:
-    set pins, 1 [1] ; Bit 0: Alto por 2 ciclos (0.4 µs a 8 MHz)
-    set pins, 0 [2] ; Bit 0: Baixo por 3 ciclos (0.85 µs a 8 MHz)
+    set pins, 1 [2]
+    set pins, 0 [2]
 cont:
-    nop             ; Ciclo adicional para sincronização
+    set pins, 0 [1]
 .wrap
 
 
@@ -20,27 +19,31 @@ static inline void ws2812_program_init(PIO pio, uint sm, uint offset, uint pin, 
 {
     pio_sm_config c = ws2812_program_get_default_config(offset);
 
-    // Configura o pino de saída
+    // Configura o pino para ser usado no grupo de saída (set instruction)
     sm_config_set_set_pins(&c, pin, 1);
+
+    // Inicializa o GPIO para o pino
     pio_gpio_init(pio, pin);
+
+    // Define o pino como saída no PIO
     pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, true);
 
-    // Configura o divisor de clock para gerar a frequência desejada
-    float div = clock_get_hz(clk_sys) / (freq * 3); // 3 ciclos por bit
+    // Configura o clock do PIO para 8MHz, conforme a versão que funciona
+    float div = clock_get_hz(clk_sys) / 8000000.0;
     sm_config_set_clkdiv(&c, div);
 
-    // Configura o FIFO para enviar dados
+    // Junta os FIFOs para transmitir dados (TX)
     sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);
 
-    // Configura o deslocamento de saída
+    // Configura o deslocamento de saída para 24 bits (autopull ativado, deslocamento para a esquerda)
     sm_config_set_out_shift(&c, false, true, 24);
 
-    // Configura o comportamento do pino de saída
+    // Configura o modo “sticky” para manter o último valor de saída
     sm_config_set_out_special(&c, true, false, false);
 
-    // Inicializa a state machine
+    // Inicializa a state machine com a configuração definida
     pio_sm_init(pio, sm, offset, &c);
-
+    
     // Habilita a state machine
     pio_sm_set_enabled(pio, sm, true);
 }

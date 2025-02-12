@@ -98,9 +98,9 @@ double NUM_9[25] = {
     0, 1, 1, 1, 0
 };
 
-double *NUMBERS[] = {NUM_0, NUM_1, NUM_2, NUM_3, NUM_4, NUM_5, NUM_6, NUM_7, NUM_8, NUM_9};
+volatile int current_index = 0; 
 
-volatile int current_index = 0;
+double *NUMBERS[] = {NUM_0, NUM_1, NUM_2, NUM_3, NUM_4, NUM_5, NUM_6, NUM_7, NUM_8, NUM_9};
 
 // void ws2812b_init(PIO pio, uint sm) {
 //     uint offset = pio_add_program(pio, &ws2812_program); // Adiciona o programa PIO
@@ -116,15 +116,27 @@ uint32_t matrix_rgb(double g, double r, double b) {
 
 void ws2812b_draw(PIO pio, uint sm, int num) {
     current_index = num;
-
-    if (num < 0 || num > 9) return; // Evita números inválidos
+    printf("Numero: %d\n", current_index);
     double *desenho = NUMBERS[current_index];
+    
+    uint32_t buffer[NUM_PIXELS] = {0};
 
+    // Para cada pixel lógico (de 0 a NUM_PIXELS-1)
+    // atribuímos a cor (vermelho com BRIGHTNESS) ao LED na posição física dada por mapeamento[i].
     for (int i = 0; i < NUM_PIXELS; i++) {
-        int idx_real = mapeamento[i];
-        // Define a cor vermelha (R = 1.0, G = 0.0, B = 0.0) apenas para os LEDs ativos
-        uint32_t valor_led = matrix_rgb(0.0, 0.0, desenho[idx_real] * 0.3); // Vermelho puro
-        pio_sm_put_blocking(pio, sm, valor_led);
+        int pos_fisica = mapeamento[i];  // posição física do LED correspondente
+        // Se desenho[i] for 1, queremos acender o LED em vermelho (canal vermelho não-zero)
+        // Note que usamos o índice lógico 'i' para acessar o padrão
+        if (desenho[i] == 1) {
+            buffer[pos_fisica] = matrix_rgb(0.0, 1.0 * BRIGHTNESS, 0.0);
+        } else {
+            buffer[pos_fisica] = 0;
+        }
+    }
+
+    // Envia os dados para os LEDs na ordem física (do índice 0 até NUM_PIXELS-1)
+    for (int i = 0; i < NUM_PIXELS; i++) {
+        pio_sm_put_blocking(pio, sm, buffer[i]);
     }
 }
 

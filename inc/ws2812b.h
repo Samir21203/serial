@@ -15,9 +15,10 @@
 
 #define OUT_PIN 7
 #define NUM_PIXELS 25
+#define BRIGHTNESS 0.1
 
-extern int mapeamento[25];
-extern double *NUMBERS[10];
+// extern int mapeamento[25];
+// extern double *NUMBERS[10];
 
 // void ws2812b_init(PIO pio, uint sm);
 void ws2812b_draw(PIO pio, uint sm, int num);
